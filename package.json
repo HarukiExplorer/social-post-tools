@@ -9,18 +9,11 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "postinstall:windows": "npm config set script-shell \"C:\\Program Files\\git\\bin\\bash.exe\" && nuxt prepare",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
-  },
-  "overrides": {
-    "admin-ui-components": {
-      "sass": "^1.77.0",
-      "vite": "^5.0.0"
-    }
   },
   "dependencies": {
     "@nuxt/image": "latest",
