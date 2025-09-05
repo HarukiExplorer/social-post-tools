@@ -45,13 +45,6 @@ AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4.1-mini
 AZURE_OPENAI_API_VERSION=2024-08-01-preview
 ```
 
-##### 利用可能なAzure OpenAIモデル
-
-- `gpt-4.1`: 高性能モデル
-- `gpt-4.1-mini`: バランス型モデル（推奨）
-- `gpt-4.1-nano`: 軽量モデル
-- `gpt-5`: 最新モデル
-
 ### 3. サーバの起動
 
 ```bash
