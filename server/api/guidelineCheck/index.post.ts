@@ -12,7 +12,7 @@ export default defineEventHandler(async (event): Promise<GuidelineCheckResponse>
     const body = await readValidatedBody(event, bodySchema.parse);
 
     // ガイドラインチェックの実行
-    const result = await checkGuideline(body);
+    const result = await checkGuideline(event, body);
 
     console.log('result', result);
 

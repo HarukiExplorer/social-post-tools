@@ -1,12 +1,14 @@
-import { generateTextWithAI } from './ai';
+import { generateTextWithAI, getDefaultModel } from './ai';
 import type { GuidelineCheckRequestBody, GuidelineCheckResponse } from '~~/shared/types/api/guidelineCheck';
+import type { H3Event } from 'h3';
 
 /**
  * テキストがガイドラインに適合しているかをチェックする関数
+ * @param event - H3 Event
  * @param requestBody - チェックするテキストとルールが含まれるリクエストボディ
  * @returns ガイドラインチェック結果のテキスト
  */
-export const checkGuideline = async (requestBody: GuidelineCheckRequestBody): Promise<GuidelineCheckResponse> => {
+export const checkGuideline = async (event: H3Event, requestBody: GuidelineCheckRequestBody): Promise<GuidelineCheckResponse> => {
   const { text, rules } = requestBody;
 
   try {
@@ -25,8 +27,8 @@ export const checkGuideline = async (requestBody: GuidelineCheckRequestBody): Pr
     const userPrompt = `以下のテキストをガイドラインに照らし合わせてチェックしてください:\n\n${text}`;
 
     // AI APIでのガイドラインチェック
-    const guidelineCheckText = await generateTextWithAI(systemPrompt, userPrompt, {
-      model: 'gpt-5-mini',
+    const guidelineCheckText = await generateTextWithAI(event, systemPrompt, userPrompt, {
+      model: getDefaultModel(event),
       maxTokens: 5000,
     });
 

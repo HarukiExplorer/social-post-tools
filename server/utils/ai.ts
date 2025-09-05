@@ -1,18 +1,145 @@
-import OpenAI from 'openai';
+import OpenAI, { AzureOpenAI } from 'openai';
+import type { H3Event } from 'h3';
 
-// OpenAI クライアントの初期化
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+interface AIProvider {
+  generateCompletion(params: {
+    model: string;
+    messages: Array<{ role: string; content: string }>;
+    maxTokens: number;
+    temperature: number;
+  }): Promise<string>;
+}
+
+class OpenAIProvider implements AIProvider {
+  private client: OpenAI;
+
+  constructor(apiKey: string) {
+    this.client = new OpenAI({
+      apiKey,
+    });
+  }
+
+  async generateCompletion(params: {
+    model: string;
+    messages: Array<{ role: string; content: string }>;
+    maxTokens: number;
+    temperature: number;
+  }): Promise<string> {
+    const response = await this.client.chat.completions.create({
+      model: params.model,
+      messages: params.messages,
+      max_completion_tokens: params.maxTokens,
+      temperature: params.temperature,
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error('Failed to generate text from OpenAI');
+    }
+    return content.trim();
+  }
+}
+
+class AzureOpenAIProvider implements AIProvider {
+  private client: AzureOpenAI;
+  private deploymentName: string;
+
+  constructor(config: {
+    apiKey: string;
+    endpoint: string;
+    deploymentName: string;
+    apiVersion: string;
+  }) {
+    this.client = new AzureOpenAI({
+      apiKey: config.apiKey,
+      endpoint: config.endpoint,
+      apiVersion: config.apiVersion,
+      deployment: config.deploymentName,
+    });
+    this.deploymentName = config.deploymentName;
+  }
+
+  async generateCompletion(params: {
+    model: string;
+    messages: Array<{ role: string; content: string }>;
+    maxTokens: number;
+    temperature: number;
+  }): Promise<string> {
+    // Azure OpenAI uses deployment name instead of model
+    const response = await this.client.chat.completions.create({
+      model: this.deploymentName,
+      messages: params.messages,
+      max_completion_tokens: params.maxTokens,
+      temperature: params.temperature,
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error('Failed to generate text from Azure OpenAI');
+    }
+    return content.trim();
+  }
+}
+
+let aiProvider: AIProvider | null = null;
+
+/**
+ * Get AI provider instance based on configuration
+ */
+export function getAIProvider(event: H3Event): AIProvider {
+  if (!aiProvider) {
+    const config = useRuntimeConfig(event);
+    const provider = config.AI_PROVIDER || 'openai';
+
+    if (provider === 'azure') {
+      if (!config.AZURE_OPENAI_API_KEY || !config.AZURE_OPENAI_ENDPOINT || !config.AZURE_OPENAI_DEPLOYMENT_NAME) {
+        throw new Error('Azure OpenAI configuration is incomplete. Please set AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, and AZURE_OPENAI_DEPLOYMENT_NAME');
+      }
+
+      aiProvider = new AzureOpenAIProvider({
+        apiKey: config.AZURE_OPENAI_API_KEY,
+        endpoint: config.AZURE_OPENAI_ENDPOINT,
+        deploymentName: config.AZURE_OPENAI_DEPLOYMENT_NAME,
+        apiVersion: config.AZURE_OPENAI_API_VERSION || '2024-08-01-preview',
+      });
+    }
+    else {
+      if (!config.OPENAI_API_KEY) {
+        throw new Error('OpenAI API key is not configured. Please set OPENAI_API_KEY');
+      }
+
+      aiProvider = new OpenAIProvider(config.OPENAI_API_KEY);
+    }
+  }
+
+  return aiProvider;
+}
+
+/**
+ * Get default model name based on provider
+ */
+export function getDefaultModel(event: H3Event): string {
+  const config = useRuntimeConfig(event);
+  const provider = config.AI_PROVIDER || 'openai';
+
+  if (provider === 'azure') {
+    // For Azure, we use deployment names directly
+    return config.AZURE_OPENAI_DEPLOYMENT_NAME || 'gpt-4.1-mini';
+  }
+
+  return 'gpt-4o-mini';
+}
 
 /**
  * OpenAI APIを使用してテキストを生成する関数
+ * @param event - H3 Event
  * @param systemPrompt - システムプロンプト
  * @param userPrompt - ユーザープロンプト
  * @param options - 生成オプション
  * @returns 生成されたテキスト
  */
 export const generateTextWithAI = async (
+  event: H3Event,
   systemPrompt: string,
   userPrompt: string,
   options: {
@@ -22,13 +149,15 @@ export const generateTextWithAI = async (
   } = {},
 ): Promise<string> => {
   const {
-    model = 'gpt-4o-mini',
+    model = getDefaultModel(event),
     maxTokens = 500,
     temperature = 1,
   } = options;
 
   try {
-    const response = await openai.chat.completions.create({
+    const provider = getAIProvider(event);
+
+    const generatedText = await provider.generateCompletion({
       model,
       messages: [
         {
@@ -40,22 +169,11 @@ export const generateTextWithAI = async (
           content: userPrompt,
         },
       ],
-      max_completion_tokens: maxTokens,
+      maxTokens,
       temperature,
     });
 
-    const generatedText = response.choices[0]?.message?.content;
-
-    if (!generatedText) {
-      console.error('AI応答の詳細:', {
-        choices: response.choices,
-        usage: response.usage,
-        model: response.model,
-      });
-      throw new Error(`テキストの生成に失敗しました。レスポンス: ${JSON.stringify(response.choices)}`);
-    }
-
-    return generatedText.trim();
+    return generatedText;
   }
   catch (error) {
     console.error('AI生成エラー:', error);

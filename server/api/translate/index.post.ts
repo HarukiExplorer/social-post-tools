@@ -12,7 +12,7 @@ export default defineEventHandler(async (event): Promise<TranslateResponse> => {
     const body = await readValidatedBody(event, bodySchema.parse);
 
     // 翻訳の実行
-    const result = await translateText(body);
+    const result = await translateText(event, body);
 
     console.log('result', result);
 

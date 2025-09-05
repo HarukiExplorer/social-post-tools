@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { GeneratePostResponse } from '~~/shared/types/api/generatePost';
-import { generatePost } from '~~/server/utils/ post';
+import { generatePost } from '~~/server/utils/post';
 
 export default defineEventHandler(async (event): Promise<GeneratePostResponse> => {
   const bodySchema = z.object({
@@ -9,7 +9,7 @@ export default defineEventHandler(async (event): Promise<GeneratePostResponse> =
   });
 
   const { requirements, referencePosts } = await readValidatedBody(event, bodySchema.parse);
-  const generatedPost = await generatePost({ requirements, referencePosts });
+  const generatedPost = await generatePost(event, { requirements, referencePosts });
 
   return generatedPost;
 });

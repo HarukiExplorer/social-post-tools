@@ -1,12 +1,14 @@
-import { generateTextWithAI } from './ai';
+import { generateTextWithAI, getDefaultModel } from './ai';
 import type { TranslateRequestBody, TranslateResponse } from '~~/shared/types/api/translate';
+import type { H3Event } from 'h3';
 
 /**
  * 日本語テキストを英語に翻訳する関数
+ * @param event - H3 Event
  * @param requestBody - 翻訳する日本語テキストとルールが含まれるリクエストボディ
  * @returns 英語に翻訳されたテキスト
  */
-export const translateText = async (requestBody: TranslateRequestBody): Promise<TranslateResponse> => {
+export const translateText = async (event: H3Event, requestBody: TranslateRequestBody): Promise<TranslateResponse> => {
   const { text, rules } = requestBody;
   try {
     // システムプロンプトの作成（日本語→英語専用）
@@ -26,8 +28,8 @@ export const translateText = async (requestBody: TranslateRequestBody): Promise<
     const userPrompt = `ルールに従って、この文章を英語にしてください。:\n\n${text}`;
 
     // AI APIでの翻訳
-    const translatedText = await generateTextWithAI(systemPrompt, userPrompt, {
-      model: 'gpt-5-mini',
+    const translatedText = await generateTextWithAI(event, systemPrompt, userPrompt, {
+      model: getDefaultModel(event),
       maxTokens: 2000,
     });
 
